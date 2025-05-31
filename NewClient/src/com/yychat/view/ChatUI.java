@@ -348,11 +348,15 @@ public class ChatUI extends JFrame {
 
             friendListContainer = new JPanel();
             friendListContainer.setLayout(new BoxLayout(friendListContainer, BoxLayout.Y_AXIS));
+            friendListContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
+            // 创建一个外层面板来包装friendListContainer
+            JPanel wrapperPanel = new JPanel(new BorderLayout());
+            wrapperPanel.add(friendListContainer, BorderLayout.NORTH); // 将列表放在NORTH位置
 
-            JScrollPane scrollPane = new JScrollPane(friendListContainer);
+            JScrollPane scrollPane = new JScrollPane(wrapperPanel); // 使用wrapperPanel作为视口视图
             scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
             scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-            scrollPane.setBorder(null); // Clean look, FlatLaf will style scrollbars
+            scrollPane.setBorder(null);
 
             gbc.gridy = 1;
             gbc.weighty = 1.0;
@@ -363,17 +367,20 @@ public class ChatUI extends JFrame {
         public void loadFriends(List<FriendData> friends) {
             friendListContainer.removeAll();
             for (FriendData friend : friends) {
-                FriendEntry entry = new FriendEntry(friend, this.mainFrame); // Pass stored mainFrame
+                FriendEntry entry = new FriendEntry(friend, this.mainFrame);
+                entry.setAlignmentX(Component.LEFT_ALIGNMENT);
                 friendListContainer.add(entry);
                 friendListContainer.add(new JSeparator(SwingConstants.HORIZONTAL));
                 friendEntryMap.put(friend.name, entry);
             }
+            // 不再需要添加胶水组件
             friendListContainer.revalidate();
             friendListContainer.repaint();
         }
 
         public void addFriendToFriendList(FriendData friend) {
             FriendEntry entry = new FriendEntry(friend, this.mainFrame);
+            entry.setAlignmentX(Component.LEFT_ALIGNMENT);
             friendListContainer.add(entry);
             friendListContainer.add(new JSeparator(SwingConstants.HORIZONTAL));
             friendEntryMap.put(friend.name, entry);
@@ -477,6 +484,18 @@ public class ChatUI extends JFrame {
                     }
                 }
             }
+
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension d = super.getPreferredSize();
+                return new Dimension(d.width, 70); // 固定高度为60像素
+            }
+
+            @Override
+            public Dimension getMaximumSize() {
+                Dimension d = super.getMaximumSize();
+                return new Dimension(d.width, 70); // 固定最大高度也为60像素
+            }
         }
     }
 
@@ -488,14 +507,14 @@ public class ChatUI extends JFrame {
         private final JTextArea inputTextArea;
         private final JButton sendButton;
         private final CardLayout cardLayout;
-        private final JPanel contentPanel; // This will go into the TOP of the new JSplitPane
+        private final JPanel contentPanel;
         private final FriendData currentUser;
-        private final JPanel inputPanelContainer; // This will go into the BOTTOM of the new JSplitPane
+        private final JPanel inputPanelContainer;
 
-        private final JSplitPane chatContentSplitPane; // New JSplitPane for messages/input
+        private final JSplitPane chatContentSplitPane;
         private FriendData currentActiveChatFriend;
-        private boolean inputAreaWasVisible = true; // Track if input area was visible before hiding
-        private int lastInputDividerLocation = -1; // Store last divider location for input area
+        private boolean inputAreaWasVisible = true;
+        private int lastInputDividerLocation = -1;
 
 
         public ChatPanel(ChatUI mainFrame, FriendData currentUser) {

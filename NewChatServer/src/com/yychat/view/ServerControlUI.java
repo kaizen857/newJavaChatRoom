@@ -37,7 +37,7 @@ public class ServerControlUI extends JFrame {
         initUI();
 
         // 重定向控制台输出
-        //redirectConsoleOutput();
+        redirectConsoleOutput();
     }
 
     private void initUI() {
@@ -131,13 +131,12 @@ public class ServerControlUI extends JFrame {
             JOptionPane.showMessageDialog(this, "服务器已经在运行!", "警告", JOptionPane.WARNING_MESSAGE);
             return;
         }
-
         serverRunning = true;
         startButton.setEnabled(false);
         stopButton.setEnabled(true);
-        if(server == null) {
-            server = new Server();
-        }
+
+        // 每次启动都创建新的 Server 实例
+        server = new Server();
         server.start();
     }
 
@@ -146,15 +145,13 @@ public class ServerControlUI extends JFrame {
             JOptionPane.showMessageDialog(this, "服务器未运行!", "警告", JOptionPane.WARNING_MESSAGE);
             return;
         }
-
         serverRunning = false;
         startButton.setEnabled(true);
         stopButton.setEnabled(false);
         System.out.println("正在停止服务器...");
         // 中断服务器线程
         server.interrupt();
-
-
+        server = null;
     }
 
     @Override

@@ -1,3 +1,5 @@
+import com.yychat.control.ImageLoaderUtil;
+
 import java.sql.Timestamp;
 import java.util.Date;
 
@@ -5,9 +7,6 @@ import java.util.Date;
 // 点击装订区域中的 <icon src="AllIcons.Actions.Execute"/> 图标。
 public class Main {
     public static void main(String[] args) {
-        Date nowTime = new Date();
-        Timestamp timestamp = new java.sql.Timestamp(nowTime.getTime());
-        System.out.println(nowTime.getTime());
-        System.out.println(timestamp);
+
     }
 }

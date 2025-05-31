@@ -16,6 +16,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -25,17 +26,28 @@ public class MessageHandler {
 
     // 单例相关
     private static volatile MessageHandler instance;
-    private final String clientUserName;
-    private final NioClient client;
+    private String clientUserName;
+    private NioClient client;
     private final AtomicBoolean hasLogin = new AtomicBoolean(false);
     private final AtomicBoolean hasStart = new AtomicBoolean(false);
     private final AtomicBoolean hasStartReceived = new AtomicBoolean(false);
-    private final ExecutorService messageProcessor = Executors.newFixedThreadPool(
-            Runtime.getRuntime().availableProcessors() * 2
+    private final AtomicBoolean logoutFromServer = new AtomicBoolean(false);
+    private final ExecutorService messageProcessor = new ThreadPoolExecutor(
+            Runtime.getRuntime().availableProcessors() * 2,
+            Runtime.getRuntime().availableProcessors() * 2,
+            60L, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(1000),
+            new ThreadFactory() {
+                private final AtomicInteger count = new AtomicInteger(1);
+                @Override
+                public Thread newThread(Runnable r) {
+                    return new Thread(r, "message-handler-" + count.getAndIncrement());
+                }
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy()
     );
     // 锁对象：用于Socket写操作线程安全
     private final Object writeLock = new Object();
-    private AtomicInteger numberOfMessages = new AtomicInteger(0);
     //暂存好友名字队列
     //暂存在线的好友名字队列
     private List<ChatMessageData> messageList;
@@ -50,14 +62,25 @@ public class MessageHandler {
     private volatile CompletableFuture<String> getFriendAvatarWaitAckFuture;
     private volatile CompletableFuture<Boolean> getFriendChatHistoryWaitAckFuture;
     private volatile CompletableFuture<Boolean> getSendMessageCpltWaitAckFuture;
-    private volatile CompletableFuture<Boolean> getLogOutWaitAckFuture;
+    private volatile CompletableFuture<Boolean> getChangeUserAvatarCpltWaitAckFuture;
+    private volatile CompletableFuture<Boolean> getQueryHasUserWaitAckFuture;
 
     private final AtomicInteger chatHistorySize = new AtomicInteger(0);
 
     private MessageHandler(String clientUserName) {
         this.clientUserName = clientUserName;
-        this.client = new NioClient("127.0.0.1", 3456);
-        this.client.setChannelHandler(this::DecodeMessage);
+    }
+
+    public void setClientUserName(String clientUserName) {
+        this.clientUserName = clientUserName;
+    }
+
+    public String getClientUserName(){
+        return clientUserName;
+    }
+
+    public boolean isLogoutFromServer(){
+        return logoutFromServer.get();
     }
 
     public static MessageHandler getInstance(String userName) {
@@ -73,8 +96,10 @@ public class MessageHandler {
 
     public void start() {
         if (!hasStart.get()) {
-            hasStart.set(true);
+            this.client = new NioClient("127.0.0.1", 3456);
+            this.client.setChannelHandler(this::DecodeMessage);
             client.listen();
+            hasStart.set(true);
         }
     }
 
@@ -88,7 +113,9 @@ public class MessageHandler {
             if (!messageProcessor.awaitTermination(5, TimeUnit.SECONDS)) {
                 messageProcessor.shutdownNow();
             }
-            client.close();
+            if(client != null) {
+                client.close();
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             messageProcessor.shutdownNow();
@@ -156,6 +183,21 @@ public class MessageHandler {
         }
     }
 
+    public void logout() {
+        logoutFromServer.set(true);
+        if(hasLogin.get()) {
+            String message = CommandType.LOGOUT.getCommandCode() + "|" + clientUserName;
+            sendMessage(client.getChannel(), message);
+        }
+        else{
+            System.exit(0);
+        }
+    }
+
+    public boolean getHasLogin(){
+        return hasLogin.get();
+    }
+
     public List<String> getOnlineFriendList(String userName) {
         //TODO:获取在线好友列表
         onlineFriendListWaitAckFuture = new CompletableFuture<>();
@@ -182,6 +224,20 @@ public class MessageHandler {
         }
         return null;
     }
+
+    public boolean changeUserAvatar(String imageBase64){
+        getChangeUserAvatarCpltWaitAckFuture = new CompletableFuture<>();
+        String message = CommandType.CHANGE_USER_AVATAR.getCommandCode() + "|" + clientUserName + "|" + imageBase64;
+        System.out.println(message.length());
+        sendMessage(client.getChannel(), message);
+        try{
+            return getChangeUserAvatarCpltWaitAckFuture.get(30,TimeUnit.SECONDS);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
 
     public List<ChatMessageData> getFriendChatHistory(String userName, String friendName) {
         //TODO:获取与好友的聊天记录
@@ -219,7 +275,30 @@ public class MessageHandler {
         String message = CommandType.SEND_MESSAGE.getCommandCode() + "|" + userName + "|" + friendName +"|"+Base64.encode(content)+"|"+time.getTime();
         sendMessage(client.getChannel(),message);
         try {
-            return getSendMessageCpltWaitAckFuture.get(30,TimeUnit.SECONDS);
+            return getSendMessageCpltWaitAckFuture.get(60,TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean sendImageMessage(String userName,String friendName,String imageBase64,Date time){
+        //TODO:发送图像信息
+        getSendMessageCpltWaitAckFuture = new CompletableFuture<>();
+        String message = CommandType.SEND_IMAGE_MESSAGE.getCommandCode() +"|"+userName+"|"+friendName+"|"+imageBase64;
+        sendMessage(client.getChannel(),message);
+        try {
+            return getSendMessageCpltWaitAckFuture.get(60,TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean confirmHasUser(String userName){
+        getQueryHasUserWaitAckFuture = new CompletableFuture<>();
+        String query = CommandType.QUERY_HAS_USER.getCommandCode() + "|" + userName;
+        sendMessage(client.getChannel(), query);
+        try {
+            return getQueryHasUserWaitAckFuture.get(10,TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
@@ -232,7 +311,7 @@ public class MessageHandler {
 
     private void DecodeMessage(SocketChannel channel) {
         try {
-            ByteBuffer buffer = ByteBuffer.allocate(8192 * 1024);
+            ByteBuffer buffer = ByteBuffer.allocate(100*1024*1024);
             int readBytes = channel.read(buffer);
             if (readBytes > 0) {
                 buffer.flip();
@@ -259,12 +338,10 @@ public class MessageHandler {
                 return;
             }
             if(command == CommandType.LOGOUT){
-                if(getLogOutWaitAckFuture != null) {
-                    getLogOutWaitAckFuture.complete(true);
+                if(params[1].equals("all")){
+                    logoutFromServer.set(true);
                 }
-                else{
-
-                }
+                System.exit(0);
             }
             if (!hasLogin.get()) {
                 handleUnauthenticatedMessage(command, params);
@@ -288,7 +365,7 @@ public class MessageHandler {
                 loginFuture.complete(success);
             }
         } else if (command == CommandType.REGISTER_RESPONSE) {
-            boolean success = params.length >= 3 && params[1].equals(clientUserName) && params[2].equals("success");
+            boolean success = params.length >= 3 && params[2].equals("success");
             if (registerFuture != null) {
                 registerFuture.complete(success);
             }
@@ -311,6 +388,22 @@ public class MessageHandler {
                 if (onlineFriendListWaitAckFuture != null) {
                     onlineFriendListWaitAckFuture.complete(onlineFriendList);
                 }
+                break;
+            }
+            case SEND_MESSAGE:{
+                //TODO:收到好友发来的聊天信息
+                String sender = params[1];
+                String message = Base64.decodeStr(params[3]);
+                Date sendTime = new Date(Long.parseLong(params[4]));
+                chatUI.newChatMessage(sender, message, sendTime);
+                break;
+            }
+            case SEND_IMAGE_MESSAGE:{//20|sender|receiver|Image
+                String sender = params[1];
+                String receiver = params[2];
+                String message = params[3];
+                Date sendTime = new Date(Long.parseLong(params[4]));
+                chatUI.newChatImageMessage(sender,message,sendTime);
                 break;
             }
             case SEND_MESSAGE_RESPONSE: {//TODO:发送信息ACK 13|userName|status|time
@@ -338,15 +431,33 @@ public class MessageHandler {
                 }
                 break;
             }
-            case REQUEST_CHAT_HISTORY_CONTENT: {//TODO:聊天记录信息回传  17|sender|receiver|content|timestamp
+            case REQUEST_CHAT_HISTORY_CONTENT: {//TODO:聊天记录信息回传  17|sender|receiver|isImage|content|sendTime
                 if(hasStartReceived.get() && chatHistorySize.get() > 0){
-                    String content = Base64.decodeStr(params[3]);
-                    Date time = new Date(Long.parseLong(params[4]));
-                    String avatarImagePath;
-                    boolean isMyself = params[1].equals(clientUserName);
-                    avatarImagePath = Paths.get(System.getProperty("user.dir"),"avatars/" + params[1] + ".png").toString();
-                    messageList.add(new ChatMessageData(isMyself,content,time,avatarImagePath));
-                    chatHistorySize.set(chatHistorySize.get() - 1);
+                    int isImage = Integer.parseInt(params[3]);
+                    if(isImage == 0){
+                        String content = Base64.decodeStr(params[4]);
+                        Date time = new Date(Long.parseLong(params[5]));
+                        String avatarImagePath;
+                        boolean isMyself = params[1].equals(clientUserName);
+                        avatarImagePath = Paths.get(System.getProperty("user.dir"),"avatars/" + params[1] + ".png").toString();
+                        messageList.add(new ChatMessageData(isMyself,true,content,time,avatarImagePath));
+                        chatHistorySize.set(chatHistorySize.get() - 1);
+                    }
+                    else{
+                        String imageBase64 = params[4];
+                        byte[] imageBytes = Base64.decode(imageBase64);
+                        Date time = new Date(Long.parseLong(params[5]));
+                        boolean isMyself = params[1].equals(clientUserName);
+                        String avatarImagePath = Paths.get(System.getProperty("user.dir"),"avatars/" + params[1] + ".png").toString();
+                        Path paths = Paths.get(System.getProperty("user.dir"), "images", time.getTime() + ".png");
+                        try {
+                            Files.write(paths, imageBytes);
+                            messageList.add(new ChatMessageData(isMyself,false,paths.toString(),time,avatarImagePath));
+                            chatHistorySize.set(chatHistorySize.get() - 1);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
                     if(chatHistorySize.get() == 0){
                         hasStartReceived.set(false);
                         getFriendChatHistoryWaitAckFuture.complete(true);
@@ -419,6 +530,29 @@ public class MessageHandler {
                         break;
                 }
                 break;
+            }
+            case CHANGE_USER_AVATAR_ACK:{
+                if(getChangeUserAvatarCpltWaitAckFuture != null) {
+                    if(params[2].equals("success")){
+                        getChangeUserAvatarCpltWaitAckFuture.complete(true);
+                    }
+                    else{
+                        getChangeUserAvatarCpltWaitAckFuture.complete(false);
+                    }
+                }
+                break;
+            }
+            case QUERY_HAS_USER_ACK:{
+                if(params[2].equals("true")) {
+                    if(getQueryHasUserWaitAckFuture != null) {
+                        getQueryHasUserWaitAckFuture.complete(true);
+                    }
+                }
+                else{
+                    if(getQueryHasUserWaitAckFuture != null) {
+                        getQueryHasUserWaitAckFuture.complete(false);
+                    }
+                }
             }
             default:
                 break;

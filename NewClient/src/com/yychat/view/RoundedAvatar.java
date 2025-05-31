@@ -74,6 +74,10 @@ class RoundedAvatar extends JPanel {
         setOpaque(false);
     }
 
+    public void setImage(Image image) {
+        this.image = image;
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);

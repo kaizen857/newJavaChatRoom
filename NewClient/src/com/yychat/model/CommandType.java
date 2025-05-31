@@ -28,8 +28,16 @@ public enum CommandType {
 
     // 发送消息 (7|userName|friendName|content|time)
     SEND_MESSAGE(7),
-    //发送图片消息（）
+    //发送图片消息（20|sender|receiver|Image）
     SEND_IMAGE_MESSAGE(20),
+
+    QUERY_HAS_USER(23),
+
+    QUERY_HAS_USER_ACK(24),
+
+    CHANGE_PASSWORD(25),
+
+    CHANGE_PASSWORD_RESPONSE(26),
 
     //发送信息ACK(13|userName|status|time)
     SEND_MESSAGE_RESPONSE(13),
@@ -51,7 +59,7 @@ public enum CommandType {
     QUERY_FRIEND_AVATAR_ACK(19),
     //更改用户头像(21|username|image)
     CHANGE_USER_AVATAR(21),
-
+    //更改用户头像ACK(22|userName|status)
     CHANGE_USER_AVATAR_ACK(22),
 
     //查询该用户的所有好友(14|userName)

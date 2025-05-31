@@ -13,7 +13,7 @@ class InvisibleSplitPaneDivider extends BasicSplitPaneDivider {
 
     @Override
     public void paint(Graphics g) {
-        // Do nothing to make it visually disappear.
+        // 不绘制
     }
 }
 

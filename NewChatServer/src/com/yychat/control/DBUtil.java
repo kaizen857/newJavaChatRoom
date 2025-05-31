@@ -150,16 +150,17 @@ public class DBUtil {
         return count;
     }
 
-    public static boolean insertChatMessage(String from, String to, String content, Date time) {
+    public static boolean insertChatMessage(String from, String to,int isImage, String content, Date time) {
         boolean result = false;
-        String query = "insert into message(from_user,to_user,content,sendtime) values(?,?,?,?)";
+        String query = "insert into message(isImage,from_user,to_user,content,sendtime) values(?,?,?,?,?)";
         PreparedStatement statement = null;
         try {
             statement = dataBase.prepareStatement(query);
-            statement.setString(1, from);
-            statement.setString(2, to);
-            statement.setString(3, content);
-            statement.setTimestamp(4, new java.sql.Timestamp(time.getTime()));
+            statement.setString(2, from);
+            statement.setString(3, to);
+            statement.setInt(1, isImage);
+            statement.setString(4, content);
+            statement.setTimestamp(5, new java.sql.Timestamp(time.getTime()));
             result = (statement.executeUpdate() > 0);
         } catch (Exception e) {
             e.printStackTrace();
@@ -210,32 +211,35 @@ public class DBUtil {
 
     public static List<String> getChatMessage(String userName, String friendName) {
         // SQL 查询：获取两人之间的所有聊天记录（按时间升序排列）
-        String sql = "SELECT from_user, to_user, content, sendtime FROM message " +
+        String sql = "SELECT isImage, from_user, to_user, content, sendtime FROM message " +
                 "WHERE (from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?) " +
                 "ORDER BY sendtime ASC";
-
         List<String> messages = new ArrayList<>();
-
         try {
             PreparedStatement stmt = dataBase.prepareStatement(sql);
-
             stmt.setString(1, userName);
             stmt.setString(2, friendName);
             stmt.setString(3, friendName);
             stmt.setString(4, userName);
-
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
+                    int isImage = rs.getInt("isImage");
                     String fromUser = rs.getString("from_user");
                     String toUser = rs.getString("to_user");
                     String content = rs.getString("content");
-                    String contentBase64 = Base64.encode(content);
                     Timestamp sendTime = rs.getTimestamp("sendTime");
-
-                    // 格式化为 "sender|receiver|content|sendTime"
-                    String formattedMessage = String.format("%s|%s|%s|%d",
-                            fromUser, toUser, contentBase64, sendTime.getTime());
-                    messages.add(formattedMessage);
+                    if(isImage == 0){
+                        String contentBase64 = Base64.encode(content);
+                        // 格式化为 "sender|receiver|isImage|content|sendTime"
+                        String formattedMessage = String.format("%s|%s|%d|%s|%d",
+                                fromUser, toUser,isImage, contentBase64, sendTime.getTime());
+                        messages.add(formattedMessage);
+                    }
+                    else{
+                        String formattedMessage = String.format("%s|%s|%d|%s|%d",
+                                fromUser, toUser,isImage, content, sendTime.getTime());
+                        messages.add(formattedMessage);
+                    }
                 }
             } catch (SQLException e) {
                 e.printStackTrace();

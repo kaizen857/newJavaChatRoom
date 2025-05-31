@@ -5,7 +5,9 @@ import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.themes.FlatMacLightLaf; // 或者其他你喜欢的 FlatLaf 主题
+import com.yychat.control.ImageLoaderUtil;
 import com.yychat.control.MessageHandler;
+import com.yychat.control.ShutdownHandler;
 import com.yychat.model.UserInfoList;
 
 import javax.swing.*;
@@ -58,7 +60,7 @@ public class LoginUI extends JFrame {
                 throw new RuntimeException(e);
             }
         }
-        setTitle("登录/注册界面");
+        setTitle("登录聊天室");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(800, 500);
         setLocationRelativeTo(null); // 居中显示
@@ -228,6 +230,16 @@ public class LoginUI extends JFrame {
         forgotPasswordButton.addActionListener(e -> {
             // TODO: 实现忘记密码逻辑
             JOptionPane.showMessageDialog(panel, "忘记密码功能暂未开放。", "提示", JOptionPane.INFORMATION_MESSAGE);
+//            String userName = JOptionPane.showInputDialog(panel,"请输入用户名","忘记密码",JOptionPane.PLAIN_MESSAGE);
+//            if(userName != null) {
+//                MessageHandler messageHandler = MessageHandler.getInstance(userName);
+//                if(messageHandler.confirmHasUser(userName)){
+//                    //TODO:修改密码
+//                }
+//                else{
+//                    JOptionPane.showMessageDialog(panel, "没有该用户！", "", JOptionPane.ERROR_MESSAGE);
+//                }
+//            }
         });
 
         // Reset insets to default for subsequent components
@@ -364,23 +376,29 @@ public class LoginUI extends JFrame {
         registerButton.addActionListener(e -> {
             String userName = usernameField.getText();
             String password = new String(passwordField.getPassword());
-            String passwordSHA256 = DigestUtil.sha256Hex(password);
-            MessageHandler tmp = MessageHandler.getInstance(userName);
-            tmp.start();
-            if(tmp.register(userName, passwordSHA256)){
-                JOptionPane.showMessageDialog(rootPane, "注册成功！");
-                userInfoList.addUserInfo(userName,password,"/avatars/default_avatar.png");
-                try(ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(userInfoFile))) {
-                    userInfoList.setLastUsedName(userName);
-                    out.writeObject(userInfoList);
-                } catch (FileNotFoundException ex) {
-                    throw new RuntimeException(ex);
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
+            String confirmPassword = new String(confirmPasswordField.getPassword());
+            if(password.equals(confirmPassword)){
+                String passwordSHA256 = DigestUtil.sha256Hex(password);
+                MessageHandler tmp = MessageHandler.getInstance(userName);
+                tmp.start();
+                if(tmp.register(userName, passwordSHA256)){
+                    JOptionPane.showMessageDialog(rootPane, "注册成功！");
+                    userInfoList.addUserInfo(userName,password,"/avatars/default_avatar.png");
+                    try(ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(userInfoFile))) {
+                        userInfoList.setLastUsedName(userName);
+                        out.writeObject(userInfoList);
+                    } catch (FileNotFoundException ex) {
+                        throw new RuntimeException(ex);
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+                else{
+                    JOptionPane.showMessageDialog(rootPane, "注册失败！");
                 }
             }
             else{
-                JOptionPane.showMessageDialog(rootPane, "注册失败！");
+                JOptionPane.showMessageDialog(rootPane, "密码不一致！");
             }
         });
         loginButton.addActionListener(e -> {
@@ -415,7 +433,6 @@ public class LoginUI extends JFrame {
                     }
                     return;
                 }
-
                 // 缓动函数 (easeInOutQuad)
                 double easedProgress;
                 if (progress < 0.5) {
@@ -423,10 +440,8 @@ public class LoginUI extends JFrame {
                 } else {
                     easedProgress = 1 - Math.pow(-2 * progress + 2, 2) / 2;
                 }
-
                 int loginPanelX;
                 int registerPanelX;
-
                 if (transitioningToLogin) { // 从注册到登录
                     registerPanelX = (int) (PANEL_WIDTH * easedProgress);
                     loginPanelX = (int) (-PANEL_WIDTH + PANEL_WIDTH * easedProgress);
@@ -434,10 +449,8 @@ public class LoginUI extends JFrame {
                     loginPanelX = (int) (-PANEL_WIDTH * easedProgress);
                     registerPanelX = (int) (-PANEL_WIDTH + PANEL_WIDTH * easedProgress);
                 }
-
                 loginContentPanel.setLocation(loginPanelX, 0);
                 registerContentPanel.setLocation(registerPanelX, 0);
-
                 animatingPanel.revalidate();
                 animatingPanel.repaint();
             }
@@ -482,6 +495,7 @@ public class LoginUI extends JFrame {
     }
 
     public static void main(String[] args) {
+        Runtime.getRuntime().addShutdownHook(new ShutdownHandler());
         SwingUtilities.invokeLater(() -> {
             LoginUI frame = new LoginUI();
             frame.setVisible(true);

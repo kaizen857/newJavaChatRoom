@@ -6,12 +6,14 @@ public class ChatMessageData {
     enum SenderType {SELF, OTHER}
 
     SenderType senderType;
+    boolean isCommonMessage;
     String message;
     Date timestamp;
     String avatarImagePath;
 
-    public ChatMessageData(boolean senderType, String message, Date timestamp, String avatarImagePath) {
+    public ChatMessageData(boolean senderType,boolean isCommonMessage, String message, Date timestamp, String avatarImagePath) {
         this.senderType = senderType ? SenderType.SELF : SenderType.OTHER;
+        this.isCommonMessage = isCommonMessage;
         this.message = message;
         this.timestamp = timestamp;
         this.avatarImagePath = avatarImagePath;
@@ -33,6 +35,10 @@ public class ChatMessageData {
         return senderType;
     }
 
+    public boolean isCommonMessage() {
+        return isCommonMessage;
+    }
+
     public void setTimestamp(Date timestamp) {
         this.timestamp = timestamp;
     }
@@ -47,5 +53,9 @@ public class ChatMessageData {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public void setCommonMessage(boolean commonMessage) {
+        isCommonMessage = commonMessage;
     }
 }

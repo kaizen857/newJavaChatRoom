@@ -10,7 +10,7 @@ import java.awt.event.MouseEvent;
 import java.text.SimpleDateFormat;
 
 class ChatMessageBubble extends JPanel {
-    private JTextPane messagePane; // 新的 JTextPane 用于显示消息
+    private JTextPane messagePane;
     private JLabel timeLabel;
     private RoundedAvatar avatar;
 
@@ -29,14 +29,21 @@ class ChatMessageBubble extends JPanel {
         messagePane.setOpaque(true);
         messagePane.setFocusable(true);
 
-        String htmlContent = "<html><head><style type='text/css'>"
-                + "body { margin:0; padding:0; font-family: " + getFont().getFamily() + "; font-size: " + getFont().getSize() + "pt; }"
-                + "p { width: 200px; margin:0; padding:0; word-wrap: break-word; overflow-wrap: break-word; }"
-                + "</style></head><body><p>"
-                + escapeHtml(data.message)
-                + "</p></body></html>";
-        messagePane.setText(htmlContent);
-        messagePane.setMargin(new Insets(8, 10, 8, 10));
+        if(data.isCommonMessage){
+            String htmlContent = "<html><head><style type='text/css'>"
+                    + "body { margin:0; padding:0; font-family: " + getFont().getFamily() + "; font-size: " + getFont().getSize() + "pt; }"
+                    + "p { width: 200px; margin:0; padding:0; word-wrap: break-word; overflow-wrap: break-word; }"
+                    + "</style></head><body><p>"
+                    + escapeHtml(data.message)
+                    + "</p></body></html>";
+            messagePane.setText(htmlContent);
+            messagePane.setMargin(new Insets(8, 10, 8, 10));
+        }
+        else{
+            //图像
+            messagePane.insertIcon(new ImageIcon(data.message));
+            messagePane.setMargin(new Insets(8, 10, 8, 10));
+        }
 
 
         timeLabel = new JLabel();

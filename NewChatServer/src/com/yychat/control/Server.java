@@ -389,15 +389,20 @@ public class Server extends Thread {
         }
         String resultHead = CommandType.REQUEST_CHAT_HISTORY_ACK.getCommandCode() + "|" + params[1] + "|" + history.size();
         sendMessage(sc, resultHead);
+        try {
+            sleep(100);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         StringBuilder result = new StringBuilder();
         for (String message : history) {//17|sender|receiver|isImage|content|sendTime
             result.append(CommandType.REQUEST_CHAT_HISTORY_CONTENT.getCommandCode())
                     .append("|")
                     .append(message);
-            sendMessage(sc, result.toString());
+            sendMessage(sc, result.toString());//丢包警告.jpg   但我也不清楚为啥有概率会丢包
             result.setLength(0);
             try {
-                sleep(50);
+                sleep(100);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }

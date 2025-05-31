@@ -6,9 +6,9 @@ import java.util.HashMap;
 import java.util.List;
 
 public class UserInfoList implements Serializable {
-    private List<String> userNames = new ArrayList<>();
-    private List<String> passwords = new ArrayList<>();
-    private HashMap<String,String> userIconPath =  new HashMap<>();
+    private final List<String> userNames = new ArrayList<>();
+    private final List<String> passwords = new ArrayList<>();
+    private final HashMap<String,String> userIconPath =  new HashMap<>();
     private String lastUsedName;
 
     public void addUserInfo(String userName,String password,String userIconPath){

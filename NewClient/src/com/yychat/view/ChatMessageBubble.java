@@ -3,16 +3,12 @@ package com.yychat.view;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.text.SimpleDateFormat;
 
 class ChatMessageBubble extends JPanel {
-    private JTextPane messagePane;
-    private JLabel timeLabel;
-    private RoundedAvatar avatar;
+    private final JTextPane messagePane;
+    private final JLabel timeLabel;
+    private final RoundedAvatar avatar;
 
     public ChatMessageBubble(ChatMessageData data) {
         boolean isSelf = data.senderType == ChatMessageData.SenderType.SELF;

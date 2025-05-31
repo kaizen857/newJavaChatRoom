@@ -13,7 +13,7 @@ import java.nio.file.Paths;
 class RoundedAvatar extends JPanel {
     private Image image;
     private Color placeholderColor;
-    private int diameter;
+    private final int diameter;
     private static Image defaultPlaceholderImage;
 
     static {

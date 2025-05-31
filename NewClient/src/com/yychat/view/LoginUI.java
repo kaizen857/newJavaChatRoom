@@ -4,8 +4,7 @@ import cn.hutool.crypto.digest.DigestUtil;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
-import com.formdev.flatlaf.themes.FlatMacLightLaf; // 或者其他你喜欢的 FlatLaf 主题
-import com.yychat.control.ImageLoaderUtil;
+import com.formdev.flatlaf.themes.FlatMacLightLaf;
 import com.yychat.control.MessageHandler;
 import com.yychat.control.ShutdownHandler;
 import com.yychat.model.UserInfoList;
@@ -14,6 +13,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URL;
@@ -255,6 +256,14 @@ public class LoginUI extends JFrame {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0; // Allow button to use full width
         panel.add(loginButton, gbc);
+
+        passwordField.addKeyListener(new KeyAdapter() {
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    loginButton.doClick();
+                }
+            }
+        });
 
         // --- Register Button ---
         JButton registerButton = new JButton("注册");

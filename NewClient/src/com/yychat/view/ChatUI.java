@@ -30,19 +30,18 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatUI extends JFrame {
 
     private final ConcurrentHashMap<String, FriendListPanel.FriendEntry> friendEntryMap = new ConcurrentHashMap<>();
-    private final File friendsInfoFile = new File("./friendsInfo.dat");
-    private AccountPanel accountPanel;
-    private FriendListPanel friendListPanel;
-    private ChatPanel chatPanel;
-    private FriendData currentUser;
-    private UserInfoList userInfoList;
-    private MessageHandler messageHandler;
-    private ConcurrentHashMap<String, FriendData> myFriends;
+    private final AccountPanel accountPanel;
+    private final FriendListPanel friendListPanel;
+    private final ChatPanel chatPanel;
+    private final FriendData currentUser;
+    private final UserInfoList userInfoList;
+    private final MessageHandler messageHandler;
+    private final ConcurrentHashMap<String, FriendData> myFriends;
 
     public ChatUI(UserInfoList userInfoList) {
         //UI初始化
         messageHandler = MessageHandler.getInstance(userInfoList.getLastUsedName());
-        if(!messageHandler.getClientUserName().equals(userInfoList.getLastUsedName())) {
+        if (!messageHandler.getClientUserName().equals(userInfoList.getLastUsedName())) {
             messageHandler.setClientUserName(userInfoList.getLastUsedName());
         }
         messageHandler.setChatUI(this);
@@ -228,8 +227,7 @@ public class ChatUI extends JFrame {
             if (getCurrentChatFriend().getName().equals(sender)) {
                 getCurrentChatFriend().getChatHistory().add(new ChatMessageData(false, false, paths.toString(), sendTime, getCurrentChatFriend().getAvatarImagePath()));
                 this.chatPanel.addMessageBubble(new ChatMessageData(false, false, paths.toString(), sendTime, getCurrentChatFriend().getAvatarImagePath()));
-            }
-            else{
+            } else {
                 FriendData friendData = myFriends.get(sender);
                 friendData.getChatHistory().add(new ChatMessageData(false, false, paths.toString(), sendTime, getCurrentChatFriend().getAvatarImagePath()));
             }
@@ -394,7 +392,6 @@ public class ChatUI extends JFrame {
             private final Color selectedBg = UIManager.getColor("List.selectionBackground");
             private final Color selectedFg = UIManager.getColor("List.selectionForeground");
             private final Color defaultFg = UIManager.getColor("List.foreground");
-            public String friendName;
             public JLabel lastMessageLabel;
             public JLabel dateLabel;
             private boolean selected = false;
@@ -468,18 +465,18 @@ public class ChatUI extends JFrame {
                 if (selected) {
                     setBackground(selectedBg);
                     for (Component child : getComponents()) {
-                        if (child instanceof JLabel) ((JLabel) child).setForeground(selectedFg);
+                        if (child instanceof JLabel) child.setForeground(selectedFg);
                     }
                 } else {
                     setBackground(defaultBg);
                     for (Component child : getComponents()) {
-                        if (child instanceof JLabel) ((JLabel) child).setForeground(defaultFg);
+                        if (child instanceof JLabel) child.setForeground(defaultFg);
                         // Restore specific colors if needed, e.g. for lastMessageLabel
                         if (child instanceof JLabel && ((JLabel) child).getText().equals(((JLabel) getComponent(2)).getText())) { // crude check for lastMessageLabel
-                            ((JLabel) child).setForeground(UIManager.getColor("Label.disabledForeground"));
+                            child.setForeground(UIManager.getColor("Label.disabledForeground"));
                         }
                         if (child instanceof JLabel && ((JLabel) child).getText().equals(((JLabel) getComponent(3)).getText())) { // crude check for dateLabel
-                            ((JLabel) child).setForeground(UIManager.getColor("Label.disabledForeground"));
+                            child.setForeground(UIManager.getColor("Label.disabledForeground"));
                         }
                     }
                 }
@@ -488,13 +485,13 @@ public class ChatUI extends JFrame {
             @Override
             public Dimension getPreferredSize() {
                 Dimension d = super.getPreferredSize();
-                return new Dimension(d.width, 70); // 固定高度为60像素
+                return new Dimension(d.width, 70);
             }
 
             @Override
             public Dimension getMaximumSize() {
                 Dimension d = super.getMaximumSize();
-                return new Dimension(d.width, 70); // 固定最大高度也为60像素
+                return new Dimension(d.width, 70);
             }
         }
     }

@@ -202,14 +202,14 @@ public class ChatUI extends JFrame {
     }
 
     public void newChatMessage(String sender, String content, Date sendTime) {
-        if (getCurrentChatFriend().getName().equals(sender)) {
+        if (getCurrentChatFriend() != null && getCurrentChatFriend().getName().equals(sender)) {
             //是当前正在聊天的好友
             getCurrentChatFriend().getChatHistory().add(new ChatMessageData(false, true, content, sendTime, getCurrentChatFriend().getAvatarImagePath()));
             this.chatPanel.addMessageBubble(new ChatMessageData(false, true, content, sendTime, getCurrentChatFriend().getAvatarImagePath()));
         } else {
             //不是当前正在聊天的好友
             FriendData friendData = myFriends.get(sender);
-            friendData.getChatHistory().add(new ChatMessageData(false, true, content, sendTime, getCurrentChatFriend().getAvatarImagePath()));
+            friendData.getChatHistory().add(new ChatMessageData(false, true, content, sendTime, friendData.getAvatarImagePath()));
         }
         FriendListPanel.FriendEntry entry = friendEntryMap.get(sender);
         String lastMessageContent = content;

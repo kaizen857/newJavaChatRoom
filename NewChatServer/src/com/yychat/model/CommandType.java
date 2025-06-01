@@ -72,19 +72,15 @@ public enum CommandType {
     FRIEND_RESPOND(10);
 
 
-
     private final int commandCode;
 
     CommandType(int commandCode) {
         this.commandCode = commandCode;
     }
 
-    public int getCommandCode() {
-        return commandCode;
-    }
-
     /**
      * 根据命令码获取对应的枚举值
+     *
      * @param code 命令码
      * @return 对应的CommandType枚举
      * @throws IllegalArgumentException 如果找不到对应的命令码
@@ -100,6 +96,7 @@ public enum CommandType {
 
     /**
      * 检查命令码是否有效
+     *
      * @param code 要检查的命令码
      * @return 如果有效返回true，否则返回false
      */
@@ -114,6 +111,7 @@ public enum CommandType {
 
     /**
      * 获取命令的最小参数数量(不包括命令码本身)
+     *
      * @param command 业务命令
      * @return 该命令所需的最小参数数量
      */
@@ -136,5 +134,9 @@ public enum CommandType {
             default:
                 return 1;
         }
+    }
+
+    public int getCommandCode() {
+        return commandCode;
     }
 }

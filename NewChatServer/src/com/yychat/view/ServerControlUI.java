@@ -1,7 +1,6 @@
 package com.yychat.view;
 
 import com.formdev.flatlaf.FlatDarkLaf;
-import com.formdev.flatlaf.FlatLightLaf;
 import com.yychat.control.Server;
 
 import javax.swing.*;
@@ -13,13 +12,13 @@ import java.io.PrintStream;
 
 public class ServerControlUI extends JFrame {
 
+    Server server;
     private JButton startButton;
     private JButton stopButton;
     private JTextArea logArea;
     private PrintStream originalOut;
     private PrintStream originalErr;
     private boolean serverRunning = false;
-    Server server;
 
     public ServerControlUI() {
         // 设置FlatLaf外观
@@ -38,6 +37,13 @@ public class ServerControlUI extends JFrame {
 
         // 重定向控制台输出
         redirectConsoleOutput();
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            ServerControlUI frame = new ServerControlUI();
+            frame.setVisible(true);
+        });
     }
 
     private void initUI() {
@@ -160,12 +166,5 @@ public class ServerControlUI extends JFrame {
         System.setOut(originalOut);
         System.setErr(originalErr);
         super.dispose();
-    }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            ServerControlUI frame = new ServerControlUI();
-            frame.setVisible(true);
-        });
     }
 }

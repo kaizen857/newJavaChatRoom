@@ -524,6 +524,9 @@ public class MessageHandler {
                     case "no user":
                         JOptionPane.showMessageDialog(chatUI, "没有这个用户", "好友请求", JOptionPane.INFORMATION_MESSAGE);
                         break;
+                    case "already friend":
+                        JOptionPane.showMessageDialog(chatUI, "已经是朋友了", "好友请求", JOptionPane.INFORMATION_MESSAGE);
+                        break;
                     default:
                         JOptionPane.showMessageDialog(chatUI, "请求被拒绝", "好友请求", JOptionPane.INFORMATION_MESSAGE);
                         break;

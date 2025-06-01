@@ -5,8 +5,10 @@ import cn.hutool.crypto.digest.DigestUtil;
 
 import javax.xml.bind.DatatypeConverter;
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 public class DBUtil {
     private static final String db_url = "jdbc:mysql://localhost:3306/yychat2025s?useUnicode=true&characterEncoding=utf-8";
@@ -150,7 +152,7 @@ public class DBUtil {
         return count;
     }
 
-    public static boolean insertChatMessage(String from, String to,int isImage, String content, Date time) {
+    public static boolean insertChatMessage(String from, String to, int isImage, String content, Date time) {
         boolean result = false;
         String query = "insert into message(isImage,from_user,to_user,content,sendtime) values(?,?,?,?,?)";
         PreparedStatement statement = null;
@@ -228,16 +230,15 @@ public class DBUtil {
                     String toUser = rs.getString("to_user");
                     String content = rs.getString("content");
                     Timestamp sendTime = rs.getTimestamp("sendTime");
-                    if(isImage == 0){
+                    if (isImage == 0) {
                         String contentBase64 = Base64.encode(content);
                         // 格式化为 "sender|receiver|isImage|content|sendTime"
                         String formattedMessage = String.format("%s|%s|%d|%s|%d",
-                                fromUser, toUser,isImage, contentBase64, sendTime.getTime());
+                                fromUser, toUser, isImage, contentBase64, sendTime.getTime());
                         messages.add(formattedMessage);
-                    }
-                    else{
+                    } else {
                         String formattedMessage = String.format("%s|%s|%d|%s|%d",
-                                fromUser, toUser,isImage, content, sendTime.getTime());
+                                fromUser, toUser, isImage, content, sendTime.getTime());
                         messages.add(formattedMessage);
                     }
                 }
@@ -255,8 +256,8 @@ public class DBUtil {
         String sql = "SELECT MAX(sendtime) AS latest_time FROM message " +
                 "WHERE (from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?)";
 
-        try{
-             PreparedStatement stmt = dataBase.prepareStatement(sql);
+        try {
+            PreparedStatement stmt = dataBase.prepareStatement(sql);
             stmt.setString(1, userName);
             stmt.setString(2, friendName);
             stmt.setString(3, friendName);
@@ -266,22 +267,22 @@ public class DBUtil {
                 if (rs.next()) {
                     return rs.getTimestamp("latest_time"); // 返回最新的时间戳
                 }
-            }catch (SQLException e) {
+            } catch (SQLException e) {
                 e.printStackTrace();
-        }
+            }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
         return null; // 无记录时返回 null
     }
 
-    public static String getUserAvatarPath(String userName){
+    public static String getUserAvatarPath(String userName) {
         String sql = "SELECT avatarPath FROM userAvatarPath WHERE username = ?";
         try {
             PreparedStatement stmt = dataBase.prepareStatement(sql);
             stmt.setString(1, userName);
             ResultSet rs = stmt.executeQuery();
-            if(rs.next()){
+            if (rs.next()) {
                 return rs.getString("avatarPath");
             }
         } catch (SQLException e) {
@@ -290,7 +291,7 @@ public class DBUtil {
         return "";
     }
 
-    public static boolean updateUserAvatarPath(String userName,String path){
+    public static boolean updateUserAvatarPath(String userName, String path) {
         String sql = "UPDATE userAvatarPath SET avatarPath = ? WHERE username = ?";
         try {
             PreparedStatement stmt = dataBase.prepareStatement(sql);
@@ -302,10 +303,10 @@ public class DBUtil {
         }
     }
 
-    public static boolean addNewUserAvatarPath(String userName,String path){
+    public static boolean addNewUserAvatarPath(String userName, String path) {
         String sql = "INSERT INTO userAvatarPath(username, avatarPath) VALUES(?, ?)";
         try {
-            PreparedStatement stmt =dataBase.prepareStatement(sql);
+            PreparedStatement stmt = dataBase.prepareStatement(sql);
             stmt.setString(1, userName);
             stmt.setString(2, path);
             boolean result = stmt.executeUpdate() > 0;

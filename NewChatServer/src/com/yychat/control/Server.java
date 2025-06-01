@@ -1,11 +1,10 @@
 package com.yychat.control;
+
 import cn.hutool.core.codec.Base64;
 import cn.hutool.core.io.BufferUtil;
 import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.socket.nio.NioServer;
-import com.yychat.control.DBUtil;
-import com.yychat.control.PasswordUtil;
 import com.yychat.model.CommandType;
 
 import java.io.File;
@@ -16,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,9 +23,9 @@ import static com.yychat.model.CommandType.*;
 
 public class Server extends Thread {
     private final String projectRoot = System.getProperty("user.dir");
+    private final ConcurrentHashMap<SocketChannel, Object> channelLocks = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, SocketChannel> clients = new ConcurrentHashMap<>();
     private NioServer server;
-    private final ConcurrentHashMap<SocketChannel, Object> channelLocks = new ConcurrentHashMap<>();
     private ExecutorService executor;
 
     public Server() {
@@ -43,6 +41,7 @@ public class Server extends Thread {
                 new LinkedBlockingQueue<>(1000),
                 new ThreadFactory() {
                     private final AtomicInteger count = new AtomicInteger(1);
+
                     @Override
                     public Thread newThread(Runnable r) {
                         return new Thread(r, "message-handler-" + count.getAndIncrement());
@@ -85,7 +84,7 @@ public class Server extends Thread {
         try {
             readBytes = channel.read(buffer);
         } catch (IOException e) {
-            if(clients.containsValue(channel)) {
+            if (clients.containsValue(channel)) {
                 throw new RuntimeException(e);
             }
         }
@@ -96,12 +95,11 @@ public class Server extends Thread {
             String msg = StrUtil.utf8Str(bytes);
             String[] parts = msg.split("\\|");//分割
             executor.submit(() -> {
-                synchronized (getLockFor(channel)){
-                    handleClientMessage(channel,parts);
+                synchronized (getLockFor(channel)) {
+                    handleClientMessage(channel, parts);
                 }
             });
-        }
-        else if (readBytes < 0) {
+        } else if (readBytes < 0) {
             IoUtil.close(channel);
         }
     }
@@ -110,192 +108,193 @@ public class Server extends Thread {
         return channelLocks.computeIfAbsent(channel, c -> new Object());
     }
 
-    private void handleClientMessage(SocketChannel channel,String[] parts){
+    private void handleClientMessage(SocketChannel channel, String[] parts) {
         try {
-                try {
-                    int commandCode = Integer.parseInt(parts[0]);
-                    CommandType command = CommandType.fromCode(commandCode);
-                    if (parts.length - 1 < CommandType.getMinParamCount(command)) {
-                        String message = CommandType.GENERAL_ACK.getCommandCode() + "|server|invalid_param_count";
-                        sendMessage(channel, message);
-                        return;
+            try {
+                int commandCode = Integer.parseInt(parts[0]);
+                CommandType command = CommandType.fromCode(commandCode);
+                if (parts.length - 1 < CommandType.getMinParamCount(command)) {
+                    String message = CommandType.GENERAL_ACK.getCommandCode() + "|server|invalid_param_count";
+                    sendMessage(channel, message);
+                    return;
+                }
+                StringBuilder messageBuilder = new StringBuilder();
+                switch (command) {
+                    case LOGIN_REQUEST://登录请求
+                    {
+                        if (handleLogin(parts)) {
+                            //登录成功
+                            messageBuilder.append(LOGIN_RESPONSE.getCommandCode())
+                                    .append("|")
+                                    .append(parts[1])
+                                    .append("|")
+                                    .append("success");
+                            System.out.println("login success");
+                            clients.put(parts[1], channel);
+                        } else {
+                            //登录失败
+                            messageBuilder.append(LOGIN_RESPONSE.getCommandCode())
+                                    .append("|")
+                                    .append(parts[1])
+                                    .append("|")
+                                    .append("fail");
+                            System.out.println("login fail");
+                        }
+                        sendMessage(channel, messageBuilder.toString());
+                        break;
                     }
-                    StringBuilder messageBuilder = new StringBuilder();
-                    switch (command) {
-                        case LOGIN_REQUEST://登录请求
-                        {
-                            if (handleLogin(parts)) {
-                                //登录成功
-                                messageBuilder.append(LOGIN_RESPONSE.getCommandCode())
-                                        .append("|")
-                                        .append(parts[1])
-                                        .append("|")
-                                        .append("success");
-                                System.out.println("login success");
-                                clients.put(parts[1], channel);
-                            } else {
-                                //登录失败
-                                messageBuilder.append(LOGIN_RESPONSE.getCommandCode())
-                                        .append("|")
-                                        .append(parts[1])
-                                        .append("|")
-                                        .append("fail");
-                                System.out.println("login fail");
-                            }
-                            sendMessage(channel, messageBuilder.toString());
-                            break;
-                        }
-                        case REGISTER_REQUEST://注册请求
-                        {
-                            //TODO:注册请求
-                            if (handleRegister(parts)) {
-                                messageBuilder.append(REGISTER_RESPONSE.getCommandCode())
-                                        .append("|")
-                                        .append(parts[1])
-                                        .append("|")
-                                        .append("success");
-                                System.out.println("register success");
-                            } else {
-                                messageBuilder.append(REGISTER_RESPONSE.getCommandCode())
-                                        .append("|")
-                                        .append(parts[1])
-                                        .append("|")
-                                        .append("fail");
-                                System.out.println("register fail");
-                            }
-                            sendMessage(channel, messageBuilder.toString());
-                            break;
-                        }
-                        case FRIEND_REQUEST://新好友请求
-                        {//TODO:新好友请求
-                            handleFriendRequest(channel, parts);
-                            break;
-                        }
-                        case QUERY_ONLINE_FRIENDS://查询所有在线的好友
-                        {
-                            String result = queryAllOnlineFriend(parts[1]);
-                            messageBuilder.append(QUERY_ONLINE_FRIENDS_RESPONSE.getCommandCode())
+                    case REGISTER_REQUEST://注册请求
+                    {
+                        //TODO:注册请求
+                        if (handleRegister(parts)) {
+                            messageBuilder.append(REGISTER_RESPONSE.getCommandCode())
                                     .append("|")
                                     .append(parts[1])
                                     .append("|")
-                                    .append(result);
-                            sendMessage(channel, messageBuilder.toString());
-                            break;
-                        }
-                        case LOGOUT://登出
-                        {
-                            if (parts.length > 1) {
-                                handleLogout(channel, parts[1]);
-                                System.out.println(parts[1] + "logout success");
-                            } else {
-                                handleLogout(channel, null);
-                            }
-                            break;
-                        }
-                        case SEND_MESSAGE://发送信息
-                        {
-                            handleSendMessage(channel, parts);
-                            break;
-                        }
-                        case REQUEST_CHAT_HISTORY://请求聊天记录
-                        {
-                            handleQueryChatHistory(channel, parts);
-                            break;
-                        }
-                        case FRIEND_RESPOND://好友回应发给他的好友请求
-                        {
-                            handleFriendRequestResponse(channel, parts);
-                            break;
-                        }
-                        case QUERY_ALL_FRIENDS://获取好友列表
-                        {
-                            String allFriends = DBUtil.getAllFriends(parts[1], 1);
-                            messageBuilder.append(QUERY_ALL_FRIENDS_RESPONSE.getCommandCode())
+                                    .append("success");
+                            System.out.println("register success");
+                        } else {
+                            messageBuilder.append(REGISTER_RESPONSE.getCommandCode())
                                     .append("|")
                                     .append(parts[1])
                                     .append("|")
-                                    .append(allFriends);
-                            sendMessage(channel, messageBuilder.toString());
-                            break;
+                                    .append("fail");
+                            System.out.println("register fail");
                         }
-                        case QUERY_FRIEND_AVATAR://获取头像 18|userName|friendName
-                        {
-                            String path = DBUtil.getUserAvatarPath(parts[2]);
-                            String imageBase64 = Base64.encode(new File(path));
-                            //19|userName|friendName|image
-                            String message = QUERY_FRIEND_AVATAR_ACK.getCommandCode() + "|" + parts[1] + "|" + parts[2] + "|" + imageBase64;
+                        sendMessage(channel, messageBuilder.toString());
+                        break;
+                    }
+                    case FRIEND_REQUEST://新好友请求
+                    {//TODO:新好友请求
+                        handleFriendRequest(channel, parts);
+                        break;
+                    }
+                    case QUERY_ONLINE_FRIENDS://查询所有在线的好友
+                    {
+                        String result = queryAllOnlineFriend(parts[1]);
+                        messageBuilder.append(QUERY_ONLINE_FRIENDS_RESPONSE.getCommandCode())
+                                .append("|")
+                                .append(parts[1])
+                                .append("|")
+                                .append(result);
+                        sendMessage(channel, messageBuilder.toString());
+                        break;
+                    }
+                    case LOGOUT://登出
+                    {
+                        if (parts.length > 1) {
+                            handleLogout(channel, parts[1]);
+                            System.out.println(parts[1] + "logout success");
+                        } else {
+                            handleLogout(channel, null);
+                        }
+                        break;
+                    }
+                    case SEND_MESSAGE://发送信息
+                    {
+                        handleSendMessage(channel, parts);
+                        break;
+                    }
+                    case REQUEST_CHAT_HISTORY://请求聊天记录
+                    {
+                        handleQueryChatHistory(channel, parts);
+                        break;
+                    }
+                    case FRIEND_RESPOND://好友回应发给他的好友请求
+                    {
+                        handleFriendRequestResponse(channel, parts);
+                        break;
+                    }
+                    case QUERY_ALL_FRIENDS://获取好友列表
+                    {
+                        String allFriends = DBUtil.getAllFriends(parts[1], 1);
+                        messageBuilder.append(QUERY_ALL_FRIENDS_RESPONSE.getCommandCode())
+                                .append("|")
+                                .append(parts[1])
+                                .append("|")
+                                .append(allFriends);
+                        sendMessage(channel, messageBuilder.toString());
+                        break;
+                    }
+                    case QUERY_FRIEND_AVATAR://获取头像 18|userName|friendName
+                    {
+                        String path = DBUtil.getUserAvatarPath(parts[2]);
+                        String imageBase64 = Base64.encode(new File(path));
+                        //19|userName|friendName|image
+                        String message = QUERY_FRIEND_AVATAR_ACK.getCommandCode() + "|" + parts[1] + "|" + parts[2] + "|" + imageBase64;
+                        sendMessage(channel, message);
+                        break;
+                    }
+                    case CHANGE_USER_AVATAR: {//21|username|image
+                        String avatarPath = Paths.get("avatars", parts[1] + ".png").toString();
+                        byte[] image = Base64.decode(parts[2]);
+                        try {
+                            Path path = Paths.get(projectRoot, avatarPath);
+                            Files.write(path, image);
+                            DBUtil.updateUserAvatarPath(parts[1], avatarPath);
+                            String message = CHANGE_USER_AVATAR_ACK.getCommandCode() + "|" + parts[1] + "|success";
                             sendMessage(channel, message);
-                            break;
+                        } catch (IOException e) {
+                            String message = CHANGE_USER_AVATAR_ACK.getCommandCode() + "|" + parts[1] + "|failure";
+                            sendMessage(channel, message);
+                            throw new RuntimeException(e);
                         }
-                        case CHANGE_USER_AVATAR:{//21|username|image
-                            String avatarPath = Paths.get("avatars",parts[1] +".png").toString();
-                            byte[] image = Base64.decode(parts[2]);
-                            try{
-                                Path path = Paths.get(projectRoot,avatarPath);
-                                Files.write(path, image);
-                                DBUtil.updateUserAvatarPath(parts[1],avatarPath);
-                                String message = CHANGE_USER_AVATAR_ACK.getCommandCode() +"|"+parts[1]+"|success";
-                                sendMessage(channel, message);
-                            } catch (IOException e) {
-                                String message = CHANGE_USER_AVATAR_ACK.getCommandCode() +"|"+parts[1]+"|failure";
-                                sendMessage(channel, message);
-                                throw new RuntimeException(e);
-                            }
-                            break;
-                        }
-                        case SEND_IMAGE_MESSAGE:{
-                            String userName = parts[1];
-                            String friendName = parts[2];
-                            String message = parts[3];
-                            Date now = new Date();
-                            if (clients.containsKey(friendName)) {
-                                StringBuilder builder = new StringBuilder();
-                                builder.append(SEND_IMAGE_MESSAGE.getCommandCode())
+                        break;
+                    }
+                    case SEND_IMAGE_MESSAGE: {
+                        String userName = parts[1];
+                        String friendName = parts[2];
+                        String message = parts[3];
+                        Date now = new Date();
+                        if (clients.containsKey(friendName)) {
+                            StringBuilder builder = new StringBuilder();
+                            builder.append(SEND_IMAGE_MESSAGE.getCommandCode())
+                                    .append("|")
+                                    .append(userName)
+                                    .append("|")
+                                    .append(friendName)
+                                    .append("|")
+                                    .append(message)
+                                    .append("|")
+                                    .append(now.getTime());
+                            boolean result = sendMessage(clients.get(friendName), builder.toString());
+                            result |= DBUtil.insertChatMessage(userName, friendName, 1, message, now);
+                            builder.setLength(0);
+                            //发送信息ACK(13|userName|status|time)
+                            if (result) {
+                                builder.append(SEND_MESSAGE_RESPONSE.getCommandCode())
                                         .append("|")
                                         .append(userName)
                                         .append("|")
-                                        .append(friendName)
-                                        .append("|")
-                                        .append(message)
+                                        .append("success")
                                         .append("|")
                                         .append(now.getTime());
-                                boolean result = sendMessage(clients.get(friendName), builder.toString());
-                                result |= DBUtil.insertChatMessage(userName, friendName,1, message, now);
-                                builder.setLength(0);
-                                //发送信息ACK(13|userName|status|time)
-                                if (result) {
-                                    builder.append(SEND_MESSAGE_RESPONSE.getCommandCode())
-                                            .append("|")
-                                            .append(userName)
-                                            .append("|")
-                                            .append("success")
-                                            .append("|")
-                                            .append(now.getTime());
-                                } else {
-                                    builder.append(SEND_MESSAGE_RESPONSE.getCommandCode())
-                                            .append("|")
-                                            .append(userName)
-                                            .append("|")
-                                            .append("failure")
-                                            .append("|")
-                                            .append(now.getTime());
-                                }
-                                sendMessage(channel, builder.toString());
+                            } else {
+                                builder.append(SEND_MESSAGE_RESPONSE.getCommandCode())
+                                        .append("|")
+                                        .append(userName)
+                                        .append("|")
+                                        .append("failure")
+                                        .append("|")
+                                        .append(now.getTime());
                             }
-                            break;
+                            sendMessage(channel, builder.toString());
                         }
-                        case QUERY_HAS_USER:{
-                            String userName = parts[1];
-                            boolean result = DBUtil.hasUser(userName);
-                            String response = QUERY_HAS_USER_ACK.getCommandCode() + "|" + userName + "|" + (result ? "true":"false");
-                            break;
-                        }
-                        default:break;
+                        break;
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    throw e;
+                    case QUERY_HAS_USER: {
+                        String userName = parts[1];
+                        boolean result = DBUtil.hasUser(userName);
+                        String response = QUERY_HAS_USER_ACK.getCommandCode() + "|" + userName + "|" + (result ? "true" : "false");
+                        break;
+                    }
+                    default:
+                        break;
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw e;
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -305,10 +304,9 @@ public class Server extends Thread {
 
         String userName = params[1];
         String password = params[2];
-        if(clients.containsKey(userName)){
+        if (clients.containsKey(userName)) {
             return false;
-        }
-        else{
+        } else {
             return DBUtil.loginValidate(userName, password);
         }
     }
@@ -322,11 +320,7 @@ public class Server extends Thread {
             byte[] salt = PasswordUtil.generateSalt();
             if (DBUtil.addNewUser(userName, password, salt) == 1) {
                 String defaultAvatarPath = Paths.get("avatars", "default_avatar.png").toString();
-                if (DBUtil.addNewUserAvatarPath(userName, defaultAvatarPath)) {
-                    return true;
-                } else {
-                    return false;
-                }
+                return DBUtil.addNewUserAvatarPath(userName, defaultAvatarPath);
             } else {
                 return false;
             }
@@ -337,7 +331,9 @@ public class Server extends Thread {
         //TODO:转发好友申请 (3|userName|friendName)
         String userName = params[1];
         String friendName = params[2];
-        if (DBUtil.hasUser(friendName)) {
+        boolean hasUser = DBUtil.hasUser(userName);
+        boolean isFriend = DBUtil.isUsersFriend(userName,friendName,1);
+        if (hasUser && !isFriend) {
             if (clients.containsKey(friendName)) {
                 //在线就转发申请
                 String message = params[0] + "|" + params[1] + "|" + params[2];
@@ -352,7 +348,16 @@ public class Server extends Thread {
                     throw new RuntimeException(e);
                 }
             }
-        } else {
+        } else if(isFriend){
+            String message = NEW_FRIEND_CONFIRM.getCommandCode() + "|" + userName + "|" + friendName + "|already friend";
+            sendMessage(sc, message);
+            try {
+                sleep(1);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        else{
             String message = NEW_FRIEND_CONFIRM.getCommandCode() + "|" + userName + "|" + friendName + "|no user";
             sendMessage(sc, message);
             try {
@@ -428,7 +433,7 @@ public class Server extends Thread {
                     .append("|")
                     .append(now.getTime());
             boolean result = sendMessage(clients.get(friendName), builder.toString());
-            result |= DBUtil.insertChatMessage(userName, friendName,0, Base64.decodeStr(message), now);
+            result |= DBUtil.insertChatMessage(userName, friendName, 0, Base64.decodeStr(message), now);
             builder.setLength(0);
             //发送信息ACK(13|userName|status|time)
             if (result) {
@@ -451,7 +456,7 @@ public class Server extends Thread {
             sendMessage(sc, builder.toString());
             return result;
         } else {
-            boolean result = DBUtil.insertChatMessage(userName, friendName,0, Base64.decodeStr(message), now);
+            boolean result = DBUtil.insertChatMessage(userName, friendName, 0, Base64.decodeStr(message), now);
             StringBuilder builder = new StringBuilder();
             if (result) {
                 builder.append(SEND_MESSAGE_RESPONSE.getCommandCode())

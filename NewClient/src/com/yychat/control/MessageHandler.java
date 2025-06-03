@@ -151,7 +151,7 @@ public class MessageHandler {
         sendCommand(CommandType.LOGIN_REQUEST, userName, password);
 
         try {
-            return loginFuture.get(10, TimeUnit.SECONDS);
+            return loginFuture.get(3, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             return false;
         }
@@ -164,22 +164,33 @@ public class MessageHandler {
         sendCommand(CommandType.REGISTER_REQUEST, userName, password);
 
         try {
-            return registerFuture.get(10, TimeUnit.SECONDS);
+            return registerFuture.get(3, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             return false;
         }
     }
 
     public List<String> getAllFriendsName(String userName) {
-        //TODO:获取所有好友名字
-        friendListWaitAckFuture = new CompletableFuture<>();
-        String request = CommandType.QUERY_ALL_FRIENDS.getCommandCode() + "|" + userName;
-        sendMessage(client.getChannel(), request);
-        try {
-            return friendListWaitAckFuture.get(30, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            return Collections.emptyList();
+        // TODO: 获取所有好友名字
+        int maxRetries = 3; // 设置最大重试次数
+        int retryCount = 0; // 当前重试次数
+
+        while (retryCount < maxRetries) {
+            friendListWaitAckFuture = new CompletableFuture<>();
+            String request = CommandType.QUERY_ALL_FRIENDS.getCommandCode() + "|" + userName;
+            sendMessage(client.getChannel(), request);
+            try {
+                // 等待3秒
+                return friendListWaitAckFuture.get(3, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                e.printStackTrace();
+                retryCount++;
+                System.out.println("请求超时，正在重试第 " + retryCount + " 次...");
+            }
         }
+
+        System.out.println("请求失败，已达到最大重试次数 " + maxRetries);
+        return Collections.emptyList();
     }
 
     public void logout() {
@@ -199,30 +210,45 @@ public class MessageHandler {
 
     public List<String> getOnlineFriendList(String userName) {
         //TODO:获取在线好友列表
-        onlineFriendListWaitAckFuture = new CompletableFuture<>();
-        String request = CommandType.QUERY_ONLINE_FRIENDS.getCommandCode() + "|" + userName;
-        sendMessage(client.getChannel(), request);
-        try {
-            return onlineFriendListWaitAckFuture.get(30, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            return Collections.emptyList();
+        int maxRetries = 3; // 设置最大重试次数
+        int retryCount = 0; // 当前重试次数
+        while (retryCount < maxRetries) {
+            onlineFriendListWaitAckFuture = new CompletableFuture<>();
+            String request = CommandType.QUERY_ONLINE_FRIENDS.getCommandCode() + "|" + userName;
+            sendMessage(client.getChannel(), request);
+            try {
+                return onlineFriendListWaitAckFuture.get(3, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                retryCount++;
+                System.out.println("请求超时，正在重试第 " + retryCount + " 次...");
+            }
         }
+        System.out.println("请求失败，已达到最大重试次数 " + maxRetries);
+        return Collections.emptyList();
     }
 
     public String getFriendAvatar(String userName, String friendName) {
-        //TODO:获取好友头像（保存到本地后返回路径）
-        getFriendAvatarWaitAckFuture = new CompletableFuture<>();
-        String request = CommandType.QUERY_FRIEND_AVATAR.getCommandCode() + "|" + userName + "|" + friendName;
-        sendMessage(client.getChannel(), request);
-        try {
+        // TODO: 获取好友头像（保存到本地后返回路径）
+        int maxRetries = 3; // 设置最大重试次数
+        int retryCount = 0; // 当前重试次数
 
-            return getFriendAvatarWaitAckFuture.get(30, TimeUnit.SECONDS);
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        while (retryCount < maxRetries) {
+            getFriendAvatarWaitAckFuture = new CompletableFuture<>();
+            String request = CommandType.QUERY_FRIEND_AVATAR.getCommandCode() + "|" + userName + "|" + friendName;
+            sendMessage(client.getChannel(), request);
+            try {
+                // 等待10秒
+                return getFriendAvatarWaitAckFuture.get(3, TimeUnit.SECONDS);
+            } catch (TimeoutException | InterruptedException | ExecutionException e) {
+//                e.printStackTrace();
+                retryCount++;
+                System.out.println("请求超时，正在重试第 " + retryCount + " 次...");
+            }
         }
+        System.out.println("请求失败，已达到最大重试次数 " + maxRetries);
         return null;
     }
+
 
     public boolean changeUserAvatar(String imageBase64){
         getChangeUserAvatarCpltWaitAckFuture = new CompletableFuture<>();
@@ -230,7 +256,7 @@ public class MessageHandler {
         System.out.println(message.length());
         sendMessage(client.getChannel(), message);
         try{
-            return getChangeUserAvatarCpltWaitAckFuture.get(30,TimeUnit.SECONDS);
+            return getChangeUserAvatarCpltWaitAckFuture.get(10,TimeUnit.SECONDS);
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
             throw new RuntimeException(e);
         }
@@ -240,16 +266,23 @@ public class MessageHandler {
 
     public List<ChatMessageData> getFriendChatHistory(String userName, String friendName) {
         //TODO:获取与好友的聊天记录
-        getFriendChatHistoryWaitAckFuture = new CompletableFuture<>();
-        String query = CommandType.REQUEST_CHAT_HISTORY.getCommandCode() + "|" + userName + "|" + friendName + "|0";
-        sendMessage(client.getChannel(), query);
-        try {
-            if (getFriendChatHistoryWaitAckFuture.get(30, TimeUnit.SECONDS)) {
-                return messageList;
+        int maxRetries = 3; // 设置最大重试次数
+        int retryCount = 0; // 当前重试次数
+        while(retryCount < maxRetries) {
+            getFriendChatHistoryWaitAckFuture = new CompletableFuture<>();
+            String query = CommandType.REQUEST_CHAT_HISTORY.getCommandCode() + "|" + userName + "|" + friendName + "|0";
+            sendMessage(client.getChannel(), query);
+            try {
+                if (getFriendChatHistoryWaitAckFuture.get(10, TimeUnit.SECONDS)) {
+                    return messageList;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                retryCount++;
+                System.out.println("请求超时，正在重试第 " + retryCount + " 次...");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
+        System.out.println("请求失败，已达到最大重试次数 " + maxRetries);
         return Collections.emptyList();
     }
 
@@ -274,7 +307,7 @@ public class MessageHandler {
         String message = CommandType.SEND_MESSAGE.getCommandCode() + "|" + userName + "|" + friendName +"|"+Base64.encode(content)+"|"+time.getTime();
         sendMessage(client.getChannel(),message);
         try {
-            return getSendMessageCpltWaitAckFuture.get(60,TimeUnit.SECONDS);
+            return getSendMessageCpltWaitAckFuture.get(5,TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
@@ -286,7 +319,7 @@ public class MessageHandler {
         String message = CommandType.SEND_IMAGE_MESSAGE.getCommandCode() +"|"+userName+"|"+friendName+"|"+imageBase64;
         sendMessage(client.getChannel(),message);
         try {
-            return getSendMessageCpltWaitAckFuture.get(60,TimeUnit.SECONDS);
+            return getSendMessageCpltWaitAckFuture.get(5,TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
@@ -297,7 +330,7 @@ public class MessageHandler {
         String query = CommandType.QUERY_HAS_USER.getCommandCode() + "|" + userName;
         sendMessage(client.getChannel(), query);
         try {
-            return getQueryHasUserWaitAckFuture.get(10,TimeUnit.SECONDS);
+            return getQueryHasUserWaitAckFuture.get(3,TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }

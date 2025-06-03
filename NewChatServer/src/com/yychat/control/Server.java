@@ -218,6 +218,7 @@ public class Server extends Thread {
                     }
                     case QUERY_FRIEND_AVATAR://获取头像 18|userName|friendName
                     {
+                        System.out.println(parts[1] + "请求" + parts[2] + "头像数据");
                         String path = DBUtil.getUserAvatarPath(parts[2]);
                         String imageBase64 = Base64.encode(new File(path));
                         //19|userName|friendName|image

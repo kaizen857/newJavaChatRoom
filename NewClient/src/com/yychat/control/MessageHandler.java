@@ -358,7 +358,7 @@ public class MessageHandler {
 
     private void handleUnauthenticatedMessage(CommandType command, String[] params) {
         if (command == CommandType.LOGIN_RESPONSE) {
-            boolean success = params.length >= 3 && params[1].equals(clientUserName) && params[2].equals("success");
+            boolean success = params.length >= 3 && params[2].equals("success");
             hasLogin.set(success);
             if (loginFuture != null) {
                 loginFuture.complete(success);

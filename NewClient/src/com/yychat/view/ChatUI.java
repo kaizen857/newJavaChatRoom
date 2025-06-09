@@ -557,12 +557,24 @@ public class ChatUI extends JFrame {
                 }
             };
 
+            /*
+                        friendListContainer = new JPanel();
+            friendListContainer.setLayout(new BoxLayout(friendListContainer, BoxLayout.Y_AXIS));
+            friendListContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
+            // 创建一个外层面板来包装friendListContainer
+            JPanel wrapperPanel = new JPanel(new BorderLayout());
+            wrapperPanel.add(friendListContainer, BorderLayout.NORTH); // 将列表放在NORTH位置
+
+            JScrollPane scrollPane = new JScrollPane(wrapperPanel); // 使用wrapperPanel作为视口视图
+            * */
             messageDisplayArea = new JPanel();
             messageDisplayArea.setLayout(new BoxLayout(messageDisplayArea, BoxLayout.Y_AXIS));
             messageDisplayArea.setBorder(new EmptyBorder(10, 10, 10, 10));
+            JPanel wrapperPanel = new JPanel(new BorderLayout());
+            wrapperPanel.add(messageDisplayArea, BorderLayout.NORTH);
 
             JPanel chatMessagesPanelWrapper = new JPanel(new BorderLayout());
-            messageScrollPane = new JScrollPane(messageDisplayArea);
+            messageScrollPane = new JScrollPane(wrapperPanel);
             messageScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
             messageScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
             messageScrollPane.setBorder(null);
